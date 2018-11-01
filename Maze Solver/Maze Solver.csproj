@@ -54,5 +54,13 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Images\Coined Solved.bmp" />
+    <Content Include="Images\Coined.bmp" />
+    <Content Include="Images\Medium Solved.bmp" />
+    <Content Include="Images\Medium.png" />
+    <Content Include="Images\Simple Maze Solved.bmp" />
+    <Content Include="Images\Simple Maze.bmp" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
