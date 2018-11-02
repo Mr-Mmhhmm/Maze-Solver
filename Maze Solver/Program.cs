@@ -23,18 +23,23 @@ namespace Maze_Solver
                 Bitmap inputImage = Image.FromFile(dialog.FileName) as Bitmap;
                 Map map = Map.BuildMap(inputImage);
 
-                Point[][] paths = map.CollectCoins();
+                Point[] path = map.CollectCoins();
 
                 Image solution = inputImage.Clone() as Image;
 
-                if (paths != null)
+                if (path != null)
                 {
                     Graphics graphics = Graphics.FromImage(solution);
-                    foreach (Point[] path in paths) graphics.DrawLines(Pens.Red, path);
+                    graphics.DrawLines(Pens.Red, path);
                     solution.Save(dialog.FileName.Remove(dialog.FileName.Length - 4) + " Solved.bmp");
                 }
                 else solution.Save(dialog.FileName.Remove(dialog.FileName.Length - 4) + " Unsolveable.bmp");
             }
         }
+    }
+
+    public static class Extensions
+    {
+        public static double SquareDistance(this Point self, Point other) => Math.Pow(self.X - other.X, 2) + Math.Pow(self.Y - other.Y, 2);
     }
 }

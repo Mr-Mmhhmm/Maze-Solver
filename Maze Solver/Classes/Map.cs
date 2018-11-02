@@ -1,10 +1,9 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Maze_Solver.Classes
 {
@@ -82,81 +81,73 @@ namespace Maze_Solver.Classes
             return map;
         }
 
-        public Point[][] CollectCoins()
+        public Point[] CollectCoins()
         {
             if (start == -1 || finish == -1) return null;
             Point startPoint = new Point(start, 0);
             Point finishPoint = new Point(finish, Height - 1);
-            List<Point[]> paths = new List<Point[]>();
-
-            foreach(Tile coin in coins)
-            {
-                Point[] pathToCoin = GetPath(startPoint, coin.Location);
-                if (pathToCoin != null)
-                {
-                    paths.Add(pathToCoin);
-                    startPoint = coin.Location;
-                }
-                Untrample();
-            }
-
-            Point[] pathToFinish = GetPath(startPoint, finishPoint);
-
-            if (pathToFinish != null)
-            {
-                paths.Add(pathToFinish);
-                return paths.ToArray();
-            }
-            else return null;
+            Point[] path = GetPath(startPoint, finishPoint, coins.Select(x => x.Location).ToList());
+            return path;
         }
 
-        public Point[] GetPath(Point start, Point finish)
+        public Point[] GetPath(Point start, Point finish, List<Point> midPoints)
         {
+            Point checkPoint = start;
+            List<Point> route = new List<Point>() { finish };
+            if (!Search(finish, start, route)) return null;
+            else return route.ToArray();
 
-            List<Point> path = new List<Point>();
-            if (!Search(start)) return null;
-            else
+
+
+            bool Search(Point currentPosition, Point destination, List<Point> path, List<Point> triedTiles = null)
             {
-                path.Add(start);
-                path.Reverse();
-                return path.ToArray();
-            }
-
-
-
-            bool Search(Point currentPosition)
-            {
+                if (triedTiles == null) triedTiles = new List<Point>();
                 List<Tile> possibleMovements = new List<Tile>();
+                int[] directions = new int[] { 1, -1 };
 
-                for (int y = -1; y <= 1; y += 2)
+                foreach (int y in directions)
                 {
                     int newY = currentPosition.Y + y;
                     if (newY > -1 && newY < Height) TryTile(currentPosition.X, newY);
                 }
 
-                for (int x = -1; x <= 1; x += 2)
+                foreach (int x in directions)
                 {
                     int newX = currentPosition.X + x;
                     if (newX > -1 && newX < Width) TryTile(newX, currentPosition.Y);
                 }
 
-                possibleMovements.Sort((x, y) => x.Cost.CompareTo(y.Cost)); //TODO: sort by overall path cost.
+                Point currentDestination;
+                if (midPoints.Count > 0)
+                {
+                    midPoints.Sort((a, b) => a.SquareDistance(currentPosition).CompareTo(b.SquareDistance(currentPosition)));
+                    currentDestination = midPoints[0];
+                }
+                else currentDestination = destination;
+
+                possibleMovements.Sort((a, b) => a.Location.SquareDistance(currentDestination).CompareTo(b.Location.SquareDistance(currentDestination)));
 
                 foreach (Tile tile in possibleMovements)
                 {
-                    if (tile.Location == finish)
+                    path.Add(tile.Location);
+                    if (tile.Location == currentDestination)
                     {
-                        path.Add(tile.Location);
-                        return true;
-                    }
-                    else
-                    {
-                        if (Search(tile.Location))
+                        if (tile.Location == destination) return true;
+                        else
                         {
-                            path.Add(tile.Location);
-                            return true;
+                            // Found a coin!
+                            midPoints.Remove(currentDestination);
+                            checkPoint = tile.Location;
+                            // Continue searching with a fresh list of tried tiles.
+                            if (Search(tile.Location, destination, path, new List<Point>())) return true;
                         }
                     }
+                    else if (Search(tile.Location, destination, path, triedTiles))
+                    {
+                        //TODO: Try to find a shorter route.
+                        return true;
+                    }
+                    else path.Remove(tile.Location);
                 }
                 return false;
 
@@ -165,18 +156,13 @@ namespace Maze_Solver.Classes
                 void TryTile(int x, int y)
                 {
                     Tile tile = this[x, y];
-                    if (tile.Walkable && !tile.tried)
+                    if (tile.Walkable && !triedTiles.Contains(tile.Location))
                     {
-                        tile.tried = true;
+                        triedTiles.Add(tile.Location);
                         possibleMovements.Add(tile);
                     }
                 }
             }
-        }
-
-        public void Untrample()
-        {
-            foreach (Tile tile in tiles) tile.tried = false;
         }
     }
 }
