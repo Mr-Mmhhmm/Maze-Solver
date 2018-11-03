@@ -23,7 +23,7 @@ namespace Maze_Solver
                 Bitmap inputImage = Image.FromFile(dialog.FileName) as Bitmap;
                 Map map = Map.BuildMap(inputImage);
 
-                Point[] path = map.CollectCoins();
+                Point[] path = map.CollectCoins().ToArray();
 
                 Image solution = inputImage.Clone() as Image;
 

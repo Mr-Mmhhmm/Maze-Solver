@@ -25,6 +25,8 @@ namespace Maze_Solver.Classes
             tiles = new Tile[size.Width * size.Height];
         }
 
+        public Tile this[Point point] => this[point.X, point.Y];
+
         public Tile this[int x, int y]
         {
             get => tiles[(y * Height) + x];
@@ -81,87 +83,119 @@ namespace Maze_Solver.Classes
             return map;
         }
 
-        public Point[] CollectCoins()
+        public List<Point> CollectCoins()
         {
             if (start == -1 || finish == -1) return null;
             Point startPoint = new Point(start, 0);
             Point finishPoint = new Point(finish, Height - 1);
-            Point[] path = GetPath(startPoint, finishPoint, coins.Select(x => x.Location).ToList());
+            List<Point> path = GetPath(startPoint, finishPoint, coins.Select(x => x.Location).ToList());
             return path;
         }
 
-        public Point[] GetPath(Point start, Point finish, List<Point> midPoints)
+        public List<Point> GetPath(Point start, Point destination, List<Point> via)
         {
-            Point checkPoint = start;
-            List<Point> route = new List<Point>() { finish };
-            if (!Search(finish, start, route)) return null;
-            else return route.ToArray();
+            Point currentPosition = destination;
 
+            List<Point> myRoute = new List<Point>();
+            List<Point> path = new List<Point>();
+            List<Point> triedTiles = new List<Point>();
+            List<List<Point>> possibleMovements = new List<List<Point>>();
 
+            int[] directions = new int[] { 1, -1 };
 
-            bool Search(Point currentPosition, Point destination, List<Point> path, List<Point> triedTiles = null)
+            while (true)
             {
-                if (triedTiles == null) triedTiles = new List<Point>();
-                List<Tile> possibleMovements = new List<Tile>();
-                int[] directions = new int[] { 1, -1 };
+                List<Point> validMovements = new List<Point>();
 
                 foreach (int y in directions)
                 {
                     int newY = currentPosition.Y + y;
-                    if (newY > -1 && newY < Height) TryTile(currentPosition.X, newY);
+                    Point point = new Point(currentPosition.X, newY);
+                    if (newY > -1 && newY < Height && TryTile(point))
+                    {
+                        triedTiles.Add(point);
+                        validMovements.Add(point);
+                    }
                 }
 
                 foreach (int x in directions)
                 {
                     int newX = currentPosition.X + x;
-                    if (newX > -1 && newX < Width) TryTile(newX, currentPosition.Y);
+                    Point point = new Point(newX, currentPosition.Y);
+                    if (newX > -1 && newX < Width && TryTile(point))
+                    {
+                        triedTiles.Add(point);
+                        validMovements.Add(point);
+                    }
                 }
 
                 Point currentDestination;
-                if (midPoints.Count > 0)
+                if (via.Count > 0)
                 {
-                    midPoints.Sort((a, b) => a.SquareDistance(currentPosition).CompareTo(b.SquareDistance(currentPosition)));
-                    currentDestination = midPoints[0];
+                    via.Sort((a, b) => a.SquareDistance(currentPosition).CompareTo(b.SquareDistance(currentPosition)));
+                    currentDestination = via[0];
                 }
-                else currentDestination = destination;
+                else currentDestination = start;
 
-                possibleMovements.Sort((a, b) => a.Location.SquareDistance(currentDestination).CompareTo(b.Location.SquareDistance(currentDestination)));
+                validMovements.Sort((a, b) => a.SquareDistance(currentDestination).CompareTo(b.SquareDistance(currentDestination)));
 
-                foreach (Tile tile in possibleMovements)
+                path.Add(currentPosition);
+                possibleMovements.Add(validMovements);
+
+                if (validMovements.Count > 0)
                 {
-                    path.Add(tile.Location);
-                    if (tile.Location == currentDestination)
+                    currentPosition = validMovements[0];
+                    validMovements.Remove(currentPosition);
+                    if (currentPosition == currentDestination)
                     {
-                        if (tile.Location == destination) return true;
+                        foreach (Point point in path) myRoute.Add(point);
+                        path.Clear();
+
+                        if (currentPosition == start)
+                        {
+                            myRoute.Add(start);
+                            return myRoute;
+                        }
                         else
                         {
                             // Found a coin!
-                            midPoints.Remove(currentDestination);
-                            checkPoint = tile.Location;
+                            via.Remove(currentDestination);
                             // Continue searching with a fresh list of tried tiles.
-                            if (Search(tile.Location, destination, path, new List<Point>())) return true;
+                            triedTiles.Clear();
+                            possibleMovements.Clear();
                         }
                     }
-                    else if (Search(tile.Location, destination, path, triedTiles))
-                    {
-                        //TODO: Try to find a shorter route.
-                        return true;
-                    }
-                    else path.Remove(tile.Location);
                 }
-                return false;
-
-
-
-                void TryTile(int x, int y)
+                else
                 {
-                    Tile tile = this[x, y];
-                    if (tile.Walkable && !triedTiles.Contains(tile.Location))
+                    // Dead end, back track to last intersection.
+                    bool invalid = true;
+                    while (invalid)
                     {
-                        triedTiles.Add(tile.Location);
-                        possibleMovements.Add(tile);
+                        possibleMovements.RemoveAt(possibleMovements.Count - 1);
+                        path.RemoveAt(path.Count - 1);
+                        if (possibleMovements.Count == 0)
+                            return null;
+                        else if (possibleMovements[possibleMovements.Count - 1].Count > 0)
+                        {
+                            currentPosition = possibleMovements[possibleMovements.Count - 1][0];
+                            possibleMovements[possibleMovements.Count - 1].RemoveAt(0);
+                            invalid = false;
+                        }
+                        else
+                        {
+                            invalid = true;
+                        }
                     }
                 }
+            }
+
+            bool TryTile(Point point)
+            {
+                Tile tile = this[point.X, point.Y];
+                return tile.Walkable &&
+                    (!triedTiles.Contains(tile.Location)
+                        || (possibleMovements.Count > 0 && possibleMovements[possibleMovements.Count - 1].Contains(point)));
             }
         }
     }
